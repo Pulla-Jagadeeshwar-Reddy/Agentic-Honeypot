@@ -13,18 +13,12 @@ def send_final_result(
         "sessionId": session_id,
         "scamDetected": scam_detected,
         "totalMessagesExchanged": total_messages,
-        "extractedIntelligence": {
-            "bankAccounts": intelligence.get("bankAccounts", []),
-            "upiIds": intelligence.get("upiIds", []),
-            "phishingLinks": intelligence.get("phishingLinks", []),
-            "phoneNumbers": intelligence.get("phoneNumbers", []),
-            "suspiciousKeywords": intelligence.get("suspiciousKeywords", [])
-        },
+        "extractedIntelligence": intelligence,
         "agentNotes": agent_notes
     }
 
     try:
         requests.post(GUVI_ENDPOINT, json=payload, timeout=5)
     except Exception:
-        # Never crash honeypot because of callback
+        # Never fail main API because of callback
         pass
