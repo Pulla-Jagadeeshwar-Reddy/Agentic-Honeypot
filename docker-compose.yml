@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  scam-honeypot:
+    build: .
+    container_name: scam-honeypot-api
+    ports:
+      - "8000:8000"
+    environment:
+      - HONEYPOT_API_KEY=${HONEYPOT_API_KEY:-your-secret-api-key-here}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - API_PORT=8000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - honeypot-network
+
+  # Optional: Add Redis for production session storage
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: scam-honeypot-redis
+  #   ports:
+  #     - "6379:6379"
+  #   networks:
+  #     - honeypot-network
+  #   restart: unless-stopped
+
+networks:
+  honeypot-network:
+    driver: bridge

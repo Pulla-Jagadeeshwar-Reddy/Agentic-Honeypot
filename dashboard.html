@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Honeypot Dashboard</title>
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;margin:20px}
+    input,button{padding:8px;margin:4px}
+    table{border-collapse:collapse;width:100%;margin-top:12px}
+    th,td{border:1px solid #ddd;padding:8px;text-align:left}
+    tr:nth-child(even){background:#f9f9f9}
+    .small{font-size:0.9em;color:#555}
+    .details{white-space:pre-wrap;font-family:monospace;font-size:0.9em}
+  </style>
+</head>
+<body>
+  <h2>Scam Honeypot Dashboard</h2>
+  <div>
+    <label>API Key: <input id="apiKey" placeholder="Enter x-api-key" size="45"></label>
+  </div>
+  <div>
+    <label>Start (ISO): <input id="start" placeholder="2026-02-01T00:00:00Z"></label>
+    <label>End (ISO): <input id="end" placeholder="2026-02-04T23:59:59Z"></label>
+    <button id="search">Search</button>
+    <button id="refresh">Refresh</button>
+  </div>
+
+  <div id="summary" class="small"></div>
+
+  <table id="sessions">
+    <thead>
+      <tr><th>Session ID</th><th>Scam Detected</th><th>Confidence</th><th>Turn Count</th><th>Bank Accounts</th><th>UPI IDs</th><th>Phishing Links</th><th>Phone Numbers</th><th>Conversation</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+<script>
+async function fetchData() {
+  const apiKey = document.getElementById('apiKey').value.trim();
+  const start = document.getElementById('start').value.trim();
+  const end = document.getElementById('end').value.trim();
+  let qs = [];
+  if (start) qs.push('start_date='+encodeURIComponent(start));
+  if (end) qs.push('end_date='+encodeURIComponent(end));
+  const url = '/api/dashboard_data' + (qs.length?('?'+qs.join('&')):'');
+  const headers = {};
+  if (apiKey) headers['x-api-key'] = apiKey;
+  const res = await fetch(url, { headers });
+  if (!res.ok) {
+    const text = await res.text();
+    alert('Error: '+res.status+' '+text);
+    return;
+  }
+  const data = await res.json();
+  render(data);
+}
+
+function render(data){
+  const tbody = document.querySelector('#sessions tbody');
+  tbody.innerHTML = '';
+  document.getElementById('summary').textContent = `Found ${data.total || data.sessions.length} sessions`;
+  const sessions = data.sessions || [];
+  sessions.forEach(s => {
+    const tr = document.createElement('tr');
+    const conv = s.conversationHistory || [];
+    const convText = conv.map(m => `[${m.timestamp}] ${m.sender}: ${m.text}`).join('\n');
+    tr.innerHTML = `
+      <td>${s.sessionId}</td>
+      <td>${s.scamDetected}</td>
+      <td>${(s.scamConfidence||0).toFixed? (s.scamConfidence||0).toFixed(2) : s.scamConfidence}</td>
+      <td>${s.turnCount||''}</td>
+      <td>${(s.extractedIntelligence?.bankAccounts||[]).join(', ')}</td>
+      <td>${(s.extractedIntelligence?.upiIds||[]).join(', ')}</td>
+      <td>${(s.extractedIntelligence?.phishingLinks||[]).join(', ')}</td>
+      <td>${(s.extractedIntelligence?.phoneNumbers||[]).join(', ')}</td>
+      <td><button onclick="toggleDetails(this)">Show</button><div class='details' style='display:none'>${escapeHtml(convText)}</div></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function toggleDetails(btn){
+  const div = btn.parentElement.querySelector('.details');
+  if(div.style.display==='none'){div.style.display='block'; btn.textContent='Hide'} else {div.style.display='none'; btn.textContent='Show'}
+}
+
+function escapeHtml(str){return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+document.getElementById('search').addEventListener('click', fetchData);
+document.getElementById('refresh').addEventListener('click', ()=>{document.getElementById('start').value='';document.getElementById('end').value='';fetchData();});
+// initial load
+fetchData();
+</script>
+</body>
+</html>
