@@ -2,13 +2,16 @@ from fastapi import FastAPI, Header, HTTPException, Request
 from pydantic import BaseModel
 from typing import List, Optional, Dict
 import os
-from openai import OpenAI
+import openai
 import re
 import requests
 from datetime import datetime
 
 app = FastAPI()
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# Initialize OpenAI client properly
+import openai
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # API Key for authentication
 API_KEY = os.getenv("API_KEY", "your-secret-key-change-this")
@@ -137,59 +140,53 @@ def get_ai_response(session_id: str, conversation_history: List[Message], curren
     # Add current message
     messages.append({"role": "user", "content": current_message})
     
-    # Define extraction function
-    extraction_function = {
-        "type": "function",
-        "function": {
-            "name": "extract_intelligence",
-            "description": "Extract scam-related intelligence from the conversation",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "bankAccounts": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Bank account numbers mentioned by scammer"
-                    },
-                    "upiIds": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "UPI IDs mentioned by scammer"
-                    },
-                    "phishingLinks": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Suspicious URLs or links shared"
-                    },
-                    "phoneNumbers": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Phone numbers mentioned by scammer"
-                    },
-                    "suspiciousKeywords": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Urgency or scam-related keywords used"
-                    }
-                },
-                "required": ["bankAccounts", "upiIds", "phishingLinks", "phoneNumbers", "suspiciousKeywords"]
-            }
-        }
-    }
-    
     try:
         # Get response with function calling
-        response = client.chat.completions.create(
+        response = openai.ChatCompletion.create(
             model="gpt-4o-mini",  # Faster and cheaper
             messages=messages,
-            tools=[extraction_function],
-            tool_choice="auto",
+            functions=[{
+                "name": "extract_intelligence",
+                "description": "Extract scam-related intelligence from the conversation",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "bankAccounts": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Bank account numbers mentioned by scammer"
+                        },
+                        "upiIds": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "UPI IDs mentioned by scammer"
+                        },
+                        "phishingLinks": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Suspicious URLs or links shared"
+                        },
+                        "phoneNumbers": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Phone numbers mentioned by scammer"
+                        },
+                        "suspiciousKeywords": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Urgency or scam-related keywords used"
+                        }
+                    },
+                    "required": ["bankAccounts", "upiIds", "phishingLinks", "phoneNumbers", "suspiciousKeywords"]
+                }
+            }],
+            function_call="auto",
             max_tokens=200,
             temperature=0.8
         )
         
-        assistant_message = response.choices[0].message
-        reply_text = assistant_message.content or ""
+        message = response.choices[0].message
+        reply_text = message.get("content", "")
         
         # Extract intelligence from function call if present
         extracted = {
@@ -200,12 +197,9 @@ def get_ai_response(session_id: str, conversation_history: List[Message], curren
             "suspiciousKeywords": []
         }
         
-        if assistant_message.tool_calls:
+        if message.get("function_call"):
             import json
-            for tool_call in assistant_message.tool_calls:
-                if tool_call.function.name == "extract_intelligence":
-                    extracted = json.loads(tool_call.function.arguments)
-                    break
+            extracted = json.loads(message["function_call"]["arguments"])
         
         # Fallback: regex extraction on entire conversation
         full_conversation = " ".join([msg.text for msg in conversation_history] + [current_message])
