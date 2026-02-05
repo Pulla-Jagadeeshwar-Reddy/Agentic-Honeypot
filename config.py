@@ -4,6 +4,16 @@ Customize these settings for your deployment
 """
 
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+API_KEY = os.getenv("API_KEY", "Decay-of-Coders")
+
+if not OPENAI_API_KEY:
+    raise RuntimeError("OPENAI_API_KEY not set")
+
 
 class Config:
     """Configuration settings"""
@@ -86,3 +96,4 @@ if ENV == "production":
 else:
 
     config = DevelopmentConfig()
+
