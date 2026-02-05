@@ -7,7 +7,7 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
-
+ENV = os.getenv("ENVIRONMENT", "development")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 API_KEY = os.getenv("API_KEY", "Decay-of-Coders")
 
@@ -96,4 +96,5 @@ if ENV == "production":
 else:
 
     config = DevelopmentConfig()
+
 
