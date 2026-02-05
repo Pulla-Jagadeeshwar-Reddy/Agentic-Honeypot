@@ -9,7 +9,7 @@ class Config:
     """Configuration settings"""
     
     # API Settings
-    API_KEY = os.getenv("HONEYPOT_API_KEY", "your-secret-api-key-here")
+    API_KEY = os.getenv("HONEYPOT_API_KEY", "Decay-of-Coders")
     API_HOST = os.getenv("API_HOST", "0.0.0.0")
     API_PORT = int(os.getenv("API_PORT", "8000"))
     
@@ -84,4 +84,5 @@ ENV = os.getenv("ENVIRONMENT", "development")
 if ENV == "production":
     config = ProductionConfig()
 else:
+
     config = DevelopmentConfig()
