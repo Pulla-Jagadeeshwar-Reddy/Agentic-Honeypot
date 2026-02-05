@@ -26,6 +26,16 @@ class IncomingRequest(BaseModel):
 sessions = {}
 
 # ---------------- JUDGE SAFE ROOT ----------------
+@app.get("/")
+def root_get():
+    return {
+        "message": "Agentic Honeypot API is running.",
+        "usage": {
+            "judge": "POST /",
+            "honeypot": "POST /api/message",
+            "docs": "/docs"
+        }
+    }
 
 @app.post("/")
 async def smart_root(
@@ -104,4 +114,5 @@ async def handle_message(
 @app.get("/health")
 def health():
     return {"status": "healthy"}
+
 
