@@ -7,7 +7,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - HONEYPOT_API_KEY=${HONEYPOT_API_KEY:-your-secret-api-key-here}
+      - HONEYPOT_API_KEY=${HONEYPOT_API_KEY:Decay-of-Coders}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - ENVIRONMENT=${ENVIRONMENT:-development}
       - API_PORT=8000
@@ -33,4 +33,5 @@ services:
 
 networks:
   honeypot-network:
+
     driver: bridge
