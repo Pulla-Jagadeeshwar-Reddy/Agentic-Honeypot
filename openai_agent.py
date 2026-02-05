@@ -31,12 +31,15 @@ async def generate_response(conversation, latest_msg: str) -> str:
 
     messages.append({"role": "user", "content": latest_msg})
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=messages,
-        temperature=0.85,
-        max_tokens=200
-    )
+   response = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=messages,
+    temperature=0.9,        # 🔥 increase creativity
+    frequency_penalty=0.8,  # 🔥 punish repeated phrases
+    presence_penalty=0.6,   # 🔥 encourage new ideas
+    max_tokens=200
+)
+
 
     reply = response.choices[0].message.content.strip()
 
