@@ -1,23 +1,21 @@
-import os
 import random
 
 def generate_agent_reply(message: str, history=None) -> str:
     """
-    Engages scammer without revealing detection.
-    Falls back safely if no LLM key is present.
+    Human-like, adaptive responses.
+    Does NOT reveal detection.
     """
 
-    if os.getenv("ANTHROPIC_API_KEY"):
-        return (
-            "Hi, I got your message. "
-            "Can you please explain the issue clearly? "
-            "Which bank and what transaction is this about?"
-        )
+    if history and len(history) > 1:
+        return random.choice([
+            "I already shared details earlier. Why do you need them again?",
+            "This seems confusing. Can you clarify the issue?",
+            "Which department are you calling from?"
+        ])
 
-    # Rule-based fallback (NO hallucination risk)
     return random.choice([
-        "I am not sure I understand. Which bank are you referring to?",
-        "Can you tell me the exact issue with my account?",
-        "I recently changed phones. What details do you need?",
-        "Is this related to UPI or net banking?"
+        "Why is my account being suspended?",
+        "Can you explain the issue clearly?",
+        "Which bank is this regarding?",
+        "I did not receive any prior notification."
     ])
