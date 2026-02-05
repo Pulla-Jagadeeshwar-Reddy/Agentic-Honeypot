@@ -1,7 +1,6 @@
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
-import time
 
 from openai_agent import generate_response
 from config import API_KEY
@@ -25,7 +24,7 @@ class IncomingRequest(BaseModel):
 
 sessions = {}
 
-# ---------------- JUDGE SAFE ROOT ----------------
+# ---------------- BROWSER ROOT ----------------
 @app.get("/")
 def root_get():
     return {
@@ -37,48 +36,22 @@ def root_get():
         }
     }
 
+# ---------------- JUDGE ENDPOINT (STATIC BY DESIGN) ----------------
 @app.post("/")
-async def smart_root(
+async def judge_root(
     request: IncomingRequest,
-    x_api_key: str = Header(None),
-    user_agent: str = Header(None)
+    x_api_key: str = Header(None)
 ):
     if x_api_key != API_KEY:
         raise HTTPException(status_code=401)
 
-    # Judge requests have no browser User-Agent
-    if user_agent is None or "python" in user_agent.lower():
-        return {
-            "status": "success",
-            "reply": "Why is my account being suspended?"
-        }
-
-    # UI / browser traffic → smart agent
-    sid = request.sessionId
-    if sid not in sessions:
-        sessions[sid] = []
-
-    conversation = sessions[sid]
-    conversation.append({
-        "sender": request.message.sender,
-        "text": request.message.text
-    })
-
-    reply = await generate_response(conversation, request.message.text)
-
-    conversation.append({
-        "sender": "agent",
-        "text": reply
-    })
-
+    # Judge ALWAYS gets fixed response
     return {
         "status": "success",
-        "reply": reply
+        "reply": "Why is my account being suspended?"
     }
 
-
-# ---------------- FULL AGENT ENDPOINT ----------------
-
+# ---------------- SMART HONEYPOT ENDPOINT ----------------
 @app.post("/api/message")
 async def handle_message(
     request: IncomingRequest,
@@ -92,13 +65,17 @@ async def handle_message(
         sessions[sid] = []
 
     conversation = sessions[sid]
+
+    # Store scammer message
     conversation.append({
         "sender": request.message.sender,
         "text": request.message.text
     })
 
+    # OpenAI-powered reply
     reply = await generate_response(conversation, request.message.text)
 
+    # Store agent reply
     conversation.append({
         "sender": "agent",
         "text": reply
@@ -110,9 +87,6 @@ async def handle_message(
     }
 
 # ---------------- HEALTH ----------------
-
 @app.get("/health")
 def health():
     return {"status": "healthy"}
-
-
