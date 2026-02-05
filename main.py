@@ -1,11 +1,13 @@
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import Optional, List, Dict
+import time
 
-from openai_agent import generate_response
-from config import API_KEY
+from detector import analyze_message
+from agent import generate_agent_reply
+from extractor import extract_intelligence
 
-app = FastAPI()
+app = FastAPI(title="Agentic Honeypot API")
 
 # ---------------- MODELS ----------------
 
@@ -17,76 +19,45 @@ class Message(BaseModel):
 class IncomingRequest(BaseModel):
     sessionId: str
     message: Message
-    conversationHistory: List[Message] = []
-    metadata: Optional[dict] = None
+    conversation: Optional[List[Message]] = []
 
-# ---------------- IN-MEMORY SESSIONS ----------------
+class HoneypotResponse(BaseModel):
+    scamDetected: bool
+    confidence: float
+    reply: Optional[str]
+    intelligence: Dict
+    timestamp: int
 
-sessions = {}
+# ---------------- ROUTES ----------------
 
-# ---------------- BROWSER ROOT ----------------
-@app.get("/")
-def root_get():
-    return {
-        "message": "Agentic Honeypot API is running.",
-        "usage": {
-            "judge": "POST /",
-            "honeypot": "POST /api/message",
-            "docs": "/docs"
-        }
-    }
-
-# ---------------- JUDGE ENDPOINT (STATIC BY DESIGN) ----------------
-@app.post("/")
-async def judge_root(
-    request: IncomingRequest,
-    x_api_key: str = Header(None)
-):
-    if x_api_key != API_KEY:
-        raise HTTPException(status_code=401)
-
-    # Judge ALWAYS gets fixed response
-    return {
-        "status": "success",
-        "reply": "Why is my account being suspended?"
-    }
-
-# ---------------- SMART HONEYPOT ENDPOINT ----------------
-@app.post("/api/message")
-async def handle_message(
-    request: IncomingRequest,
-    x_api_key: str = Header(None)
-):
-    if x_api_key != API_KEY:
-        raise HTTPException(status_code=401)
-
-    sid = request.sessionId
-    if sid not in sessions:
-        sessions[sid] = []
-
-    conversation = sessions[sid]
-
-    # Store scammer message
-    conversation.append({
-        "sender": request.message.sender,
-        "text": request.message.text
-    })
-
-    # OpenAI-powered reply
-    reply = await generate_response(conversation, request.message.text)
-
-    # Store agent reply
-    conversation.append({
-        "sender": "agent",
-        "text": reply
-    })
-
-    return {
-        "status": "success",
-        "reply": reply
-    }
-
-# ---------------- HEALTH ----------------
 @app.get("/health")
 def health():
-    return {"status": "healthy"}
+    return {"status": "ok"}
+
+@app.post("/api/message", response_model=HoneypotResponse)
+def handle_message(
+    payload: IncomingRequest,
+    x_api_key: Optional[str] = Header(None)
+):
+    if not x_api_key:
+        raise HTTPException(status_code=401, detail="Missing API key")
+
+    detection = analyze_message(payload.message.text)
+
+    reply = None
+    intelligence = {}
+
+    if detection["scam"]:
+        reply = generate_agent_reply(
+            payload.message.text,
+            payload.conversation
+        )
+        intelligence = extract_intelligence(payload.message.text)
+
+    return HoneypotResponse(
+        scamDetected=detection["scam"],
+        confidence=detection["confidence"],
+        reply=reply,
+        intelligence=intelligence,
+        timestamp=int(time.time())
+    )
